@@ -5,7 +5,12 @@ using System.Threading.Tasks;
 var target = Argument("target", "Default");
 var exercise = Argument<string>("exercise", null);
 
-var sourceDir = "./exercises";
+var exercisesSourceDir = "./exercises";
+var exercisesBuildDir  = "./build/exercises";
+
+var generatorsSourceDir = "./generators";
+var generatorsBuildDir = "./build/generators";
+
 var buildDir  = "./build";
 
 var parallelOptions = new ParallelOptions 
@@ -19,17 +24,23 @@ Task("Clean")
     });
 
 // Copy everything to build so we make no changes in the actual files.
+Task("CopyGenerators")
+    .Does(() => {
+        CopyDirectory($"{generatorsSourceDir}/", $"{generatorsBuildDir}");
+    });
+
 Task("CopyExercises")
     .IsDependentOn("Clean")
+    .IsDependentOn("CopyGenerators")
     .Does(() => {
-        CopyDirectory($"{sourceDir}/{exercise}", $"{buildDir}/{exercise}");
+        CopyDirectory($"{exercisesSourceDir}/{exercise}", $"{exercisesBuildDir}/{exercise}");
     });
 
 Task("EnableAllTests")
     .IsDependentOn("CopyExercises")
     .Does(() => {
         var skipRegex = new Regex(@"Skip\s*=\s*""Remove to run test""", RegexOptions.Compiled);
-        var testFiles = GetFiles(buildDir + "/*/*Test.cs");
+        var testFiles = GetFiles(exercisesBuildDir + "/*/*Test.cs");
 
         foreach (var testFile in testFiles) {
             var contents = System.IO.File.ReadAllText(testFile.FullPath);
@@ -47,9 +58,9 @@ Task("TestRefactoringProjects")
         // These projects have a working default implementation, and have
         // all the tests enabled. These should pass without any changes.
         var refactoringProjects = 
-              GetFiles(buildDir + "/*/TreeBuilding.csproj")
-            + GetFiles(buildDir + "/*/Ledger.csproj")
-            + GetFiles(buildDir + "/*/Markdown.csproj");
+              GetFiles(exercisesBuildDir + "/*/TreeBuilding.csproj")
+            + GetFiles(exercisesBuildDir + "/*/Ledger.csproj")
+            + GetFiles(exercisesBuildDir + "/*/Markdown.csproj");
 
         Parallel.ForEach(refactoringProjects, parallelOptions, (project) => DotNetCoreTest(project.FullPath));
 });
@@ -57,7 +68,7 @@ Task("TestRefactoringProjects")
 Task("ReplaceStubWithExample")
     .IsDependentOn("TestRefactoringProjects")
     .Does(() => {
-        var allProjects = GetFiles(buildDir + "/*/*.csproj");
+        var allProjects = GetFiles(exercisesBuildDir + "/*/*.csproj");
 
         foreach (var project in allProjects) {
             var projectDir = project.GetDirectory();
@@ -73,12 +84,21 @@ Task("ReplaceStubWithExample")
 Task("TestUsingExampleImplementation")
     .IsDependentOn("ReplaceStubWithExample")
     .Does(() => {
-        var allProjects = GetFiles(buildDir + "/*/*.csproj");
+        var allProjects = GetFiles(exercisesBuildDir + "/*/*.csproj");
         Parallel.ForEach(allProjects, parallelOptions, (project) => DotNetCoreTest(project.FullPath));
+    });
+
+Task("BuildGeneratorsSolution")
+    .IsDependentOn("CopyGenerators")
+    .Does(() => {
+        var generatorsProject = GetFiles(generatorsBuildDir + "/*.csproj");
+        Parallel.ForEach(generatorsProject, parallelOptions, (project) => NuGetRestore(project.FullPath));
+        Parallel.ForEach(generatorsProject, parallelOptions, (project) => DotNetBuild(project.FullPath));
     });
 
 Task("Default")
     .IsDependentOn("TestUsingExampleImplementation")
+    .IsDependentOn("BuildGeneratorsSolution")
     .Does(() => { });
 
 RunTarget(target);
