@@ -1,8 +1,6 @@
 $CakeVersion = "0.21.1"
 $DotNetVersion = "2.0.0";
 $DotNetInstallerUri = "https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.ps1";
-$NuGetVersion = "4.3.0"
-$NuGetExeUri = "https://dist.nuget.org/win-x86-commandline/v$NuGetVersion/nuget.exe"
 
 # Make sure tools folder exists
 $PSScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
@@ -74,14 +72,6 @@ if (!(Test-Path $CakePath)) {
      Unzip "$ToolPath\Cake.CoreCLR.zip" "$ToolPath/Cake.CoreCLR.$CakeVersion"
      Remove-Item "$ToolPath\Cake.CoreCLR.zip"
 }
-
-###########################################################################
-# Download NUGET
-###########################################################################
-
-$NuGetExePath = Join-Path $ToolPath "nuget.exe"
-
-(New-Object System.Net.WebClient).DownloadFile($NuGetExeUri, $NuGetExePath);
 
 ###########################################################################
 # RUN BUILD SCRIPT

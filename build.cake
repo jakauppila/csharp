@@ -9,7 +9,6 @@ var exercisesSourceDir = "./exercises";
 var exercisesBuildDir  = "./build/exercises";
 
 var generatorsSourceDir = "./generators";
-var generatorsBuildDir = "./build/generators";
 
 var buildDir  = "./build";
 
@@ -24,14 +23,8 @@ Task("Clean")
     });
 
 // Copy everything to build so we make no changes in the actual files.
-Task("CopyGenerators")
-    .Does(() => {
-        CopyDirectory($"{generatorsSourceDir}/", $"{generatorsBuildDir}");
-    });
-
 Task("CopyExercises")
     .IsDependentOn("Clean")
-    .IsDependentOn("CopyGenerators")
     .Does(() => {
         CopyDirectory($"{exercisesSourceDir}/{exercise}", $"{exercisesBuildDir}/{exercise}");
     });
@@ -89,15 +82,11 @@ Task("TestUsingExampleImplementation")
     });
 
 Task("BuildGeneratorsSolution")
-    .IsDependentOn("CopyGenerators")
     .Does(() => {
-        var generatorsProject = GetFiles(generatorsBuildDir + "/*.csproj");
-        Parallel.ForEach(generatorsProject, parallelOptions, (project) => NuGetRestore(project.FullPath));
-        Parallel.ForEach(generatorsProject, parallelOptions, (project) => DotNetBuild(project.FullPath));
+       DotNetCoreBuild(generatorsSourceDir + "/Generators.csproj");
     });
 
 Task("Default")
-    .IsDependentOn("TestUsingExampleImplementation")
     .IsDependentOn("BuildGeneratorsSolution")
     .Does(() => { });
 
